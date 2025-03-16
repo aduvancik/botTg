@@ -216,10 +216,30 @@ bot.on('callback_query', (callbackQuery) => {
             bot.sendMessage(chatId, 'Виберіть спосіб оплати (готівка або картка)', {
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: 'Готівка', callback_data: `cash_${salePrice}_${olegEarnings}` }],
-                  [{ text: 'Картка', callback_data: `card_${salePrice}_${olegEarnings}` }]
+                  [{ text: 'Готівка', callback_data: 'cash' }],
+                  [{ text: 'Картка', callback_data: 'card' }]
                 ]
               }
+            });
+
+            // Обробка вибору способу оплати
+            bot.on('callback_query', (callbackQuery) => {
+              const paymentMethod = callbackQuery.data;
+
+              if (paymentMethod === 'cash') {
+                data.balance.cash += salePrice;
+              } else if (paymentMethod === 'card') {
+                data.balance.card += salePrice;
+              }
+
+              // Оновлюємо баланс Олега
+              data.balance.oleg += olegEarnings;
+
+              fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
+
+              bot.sendMessage(chatId, `Продаж рідини ${flavor} бренду ${brand} успішно виконано. Кількість: ${quantity}`);
+              bot.sendMessage(chatId, `Ваша сума після продажу: ${salePrice} грн. Сума Олега: ${olegEarnings} грн.`);
+              sendMainMenu(chatId); // Відправляємо меню після продажу
             });
           });
         });
