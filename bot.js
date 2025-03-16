@@ -24,7 +24,7 @@ if (fs.existsSync('data.json')) {
 // Функція для підрахунку загальної вартості товару на складі
 const calculateInventoryValue = (inventory) => {
   let totalValue = 0;
-
+  
   Object.keys(inventory).forEach((brand) => {
     Object.keys(inventory[brand].flavors).forEach((flavor) => {
       const quantity = inventory[brand].flavors[flavor].quantity;
@@ -90,11 +90,10 @@ bot.on('callback_query', (callbackQuery) => {
       });
       break;
 
-    // Example for handling invalid input in the 'add_liquid' case
     case 'add_liquid':
       bot.sendMessage(chatId, 'Введіть бренд рідини');
       bot.once('message', (brandMsg) => {
-        const brand = brandMsg.text.trim();
+        const brand = brandMsg.text;
 
         if (!brand) {
           bot.sendMessage(chatId, 'Будь ласка, введіть бренд рідини.');
@@ -121,7 +120,7 @@ bot.on('callback_query', (callbackQuery) => {
 
             bot.sendMessage(chatId, `Тепер введіть смак рідини для бренду ${brand}`);
             bot.once('message', (flavorMsg) => {
-              const flavor = flavorMsg.text.trim();
+              const flavor = flavorMsg.text;
 
               if (!flavor) {
                 bot.sendMessage(chatId, 'Будь ласка, введіть смак рідини.');
@@ -135,6 +134,7 @@ bot.on('callback_query', (callbackQuery) => {
           });
         });
       });
+
       break;
 
     case 'sell_liquid':
