@@ -199,35 +199,48 @@ bot.on('callback_query', (callbackQuery) => {
 
     case 'view_inventory':
       let inventoryMessage = 'Асортимент рідин:\n';
-
-      // Ітеруємо через кожен бренд та смак
-      Object.keys(data.inventory).forEach((brand) => {
-        Object.keys(data.inventory[brand].flavors).forEach((flavor) => {
+      for (const brand in data.inventory) {
+        for (const flavor in data.inventory[brand].flavors) {
           const quantity = data.inventory[brand].flavors[flavor].quantity;
-          const price = data.inventory[brand].flavors[flavor].price;
-          const olegEarnings = data.inventory[brand].flavors[flavor].olegPrice;
+          const price = data.inventory[brand].price;
+          const olegPrice = data.inventory[brand].olegPrice;
 
-          inventoryMessage += `🔹 Бренд: ${brand}
-      🥰 Смак: ${flavor}, 🔹 Кількість: ${quantity}, 🔹 Ціна за одиницю: ${price} грн, 🔹 Сума для Олега за 1 шт: ${olegEarnings} грн\n`;
-        });
-      });
+          inventoryMessage += `🔹 Бренд: ${brand}\n`;
+          inventoryMessage += `🥰 Смак: ${flavor}, 🔹 Кількість: ${quantity}, 🔹 Ціна за одиницю: ${price} грн, 🔹 Сума для Олега за 1 шт: ${olegPrice} грн\n\n`;
+        }
+      }
+
+      if (inventoryMessage === 'Асортимент рідин:\n') {
+        inventoryMessage = 'Асортимент рідин порожній.';
+      }
 
       bot.sendMessage(chatId, inventoryMessage);
-      sendMainMenu(chatId);
       break;
 
     case 'view_balance':
-      // Формуємо повідомлення для виводу балансу
-      const balanceMessage = `💰 Баланс:
-        Готівка: ${data.balance.cash} грн
-        Картка: ${data.balance.card} грн
-        Олег: ${data.balance.oleg} грн
-      
-        📊 Загальний баланс: ${data.balance.cash + data.balance.card - data.balance.oleg} грн
-        📦 Загальна сума товару на складі: ${calculateInventoryValue(data.inventory)} грн`;
+      // Розрахунок загальної вартості товару
+      let totalStockValue = 0;
+      for (const brand in data.inventory) {
+        for (const flavor in data.inventory[brand].flavors) {
+          const quantity = data.inventory[brand].flavors[flavor].quantity;
+          const price = data.inventory[brand].price;
+          totalStockValue += quantity * price;
+        }
+      }
 
-      bot.sendMessage(chatId, balanceMessage);
-      sendMainMenu(chatId);
+      // Розрахунок загального балансу
+      const totalBalance = data.balance.cash + data.balance.card - data.balance.oleg;
+
+      // Відправка повідомлення
+      bot.sendMessage(chatId,
+        `💰 *Баланс:*\n` +
+        `Готівка: ${data.balance.cash} грн\n` +
+        `Картка: ${data.balance.card} грн\n` +
+        `Олег: ${data.balance.oleg} грн\n\n` +
+        `📊 *Загальний баланс:* ${totalBalance} грн\n` +
+        `📦 *Загальна сума товару на складі:* ${totalStockValue} грн`,
+        { parse_mode: 'Markdown' }
+      );
       break;
 
     case 'deduct_money':
