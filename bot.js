@@ -189,58 +189,27 @@ bot.on('callback_query', (callbackQuery) => {
 
             if (isNaN(quantity) || quantity <= 0) {
               bot.sendMessage(chatId, 'Будь ласка, введіть дійсну кількість.');
-              return;
+              return sendMainMenu(chatId);
             }
 
             const currentQuantity = data.inventory[brand].flavors[flavor].quantity;
-
             if (quantity > currentQuantity) {
-              bot.sendMessage(chatId, 'Недостатньо кількості на складі.');
-              return;
+              bot.sendMessage(chatId, 'Недостатньо товару для продажу.');
+              return sendMainMenu(chatId);
             }
 
-            // Оновлюємо кількість рідини в асортименті
+            // Update inventory and balance
             data.inventory[brand].flavors[flavor].quantity -= quantity;
+            data.balance.cash += quantity * data.inventory[brand].price;
+            data.balance.oleg += quantity * data.inventory[brand].olegPrice;
 
-            // Якщо кількість рідини стала 0, видаляємо її з асортименту
-            if (data.inventory[brand].flavors[flavor].quantity === 0) {
-              delete data.inventory[brand].flavors[flavor];
-              bot.sendMessage(chatId, `Смак ${flavor} для бренду ${brand} більше не доступний через відсутність на складі.`);
-            }
+            // Save the updated data
+            fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
 
-            // Оновлення балансу
-            const salePrice = data.inventory[brand].price * quantity;
-            const olegEarnings = data.inventory[brand].olegPrice * quantity;
+            bot.sendMessage(chatId, `Продаж рідини смак ${flavor} бренду ${brand} успішно виконано. Кількість: ${quantity}`);
+            bot.sendMessage(chatId, `Ваша сума після продажу: ${data.balance.cash} грн. Сума Олега: ${data.balance.oleg} грн.`);
 
-            // Оновлення балансу в залежності від способу оплати
-            bot.sendMessage(chatId, 'Виберіть спосіб оплати (готівка або картка)', {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: 'Готівка', callback_data: 'cash' }],
-                  [{ text: 'Картка', callback_data: 'card' }]
-                ]
-              }
-            });
-
-            // Обробка вибору способу оплати
-            bot.on('callback_query', (callbackQuery) => {
-              const paymentMethod = callbackQuery.data;
-
-              if (paymentMethod === 'cash') {
-                data.balance.cash += salePrice;
-              } else if (paymentMethod === 'card') {
-                data.balance.card += salePrice;
-              }
-
-              // Оновлюємо баланс Олега
-              data.balance.oleg += olegEarnings;
-
-              fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
-
-              bot.sendMessage(chatId, `Продаж рідини ${flavor} бренду ${brand} успішно виконано. Кількість: ${quantity}`);
-              bot.sendMessage(chatId, `Ваша сума після продажу: ${salePrice} грн. Сума Олега: ${olegEarnings} грн.`);
-              sendMainMenu(chatId); // Відправляємо меню після продажу
-            });
+            sendMainMenu(chatId); // Return to main menu after sale
           });
         });
       });
