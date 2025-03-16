@@ -41,7 +41,7 @@ const calculateInventoryValue = (inventory) => {
 const mainMenu = {
   reply_markup: {
     inline_keyboard: [
-      [{ text: 'Додати рідину', callback_data: 'add_liquid' }],
+      [{ text: 'Додати рідину)', callback_data: 'add_liquid' }],
       [{ text: 'Переглянути асортимент', callback_data: 'view_inventory' }],
       [{ text: 'Переглянути баланс', callback_data: 'view_balance' }],
       [{ text: 'Продати рідину', callback_data: 'sell_liquid' }],
