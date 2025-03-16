@@ -2,8 +2,8 @@
   "liquids": [],
   "balance": {
     "cash": 0,
-    "card": 98,
-    "oleg": 28
+    "card": 0,
+    "oleg": 0
   },
   "inventory": {}
 }

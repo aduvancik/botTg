@@ -32,7 +32,6 @@ const mainMenu = {
       [{ text: 'Списання грошей', callback_data: 'deduct_money' }],
       [{ text: 'Списання рідин', callback_data: 'deduct_liquid' }],
       [{ text: 'Списання грошей для Олега', callback_data: 'deduct_oleg' }],
-
     ]
   }
 };
@@ -201,30 +200,10 @@ bot.on('callback_query', (callbackQuery) => {
             bot.sendMessage(chatId, 'Виберіть спосіб оплати (готівка або картка)', {
               reply_markup: {
                 inline_keyboard: [
-                  [{ text: 'Готівка', callback_data: 'cash' }],
-                  [{ text: 'Картка', callback_data: 'card' }]
+                  [{ text: 'Готівка', callback_data: `cash_${salePrice}_${olegEarnings}` }],
+                  [{ text: 'Картка', callback_data: `card_${salePrice}_${olegEarnings}` }]
                 ]
               }
-            });
-
-            // Обробка вибору способу оплати
-            bot.on('callback_query', (callbackQuery) => {
-              const paymentMethod = callbackQuery.data;
-
-              if (paymentMethod === 'cash') {
-                data.balance.cash += salePrice;
-              } else if (paymentMethod === 'card') {
-                data.balance.card += salePrice;
-              }
-
-              // Оновлюємо баланс Олега
-              data.balance.oleg += olegEarnings;
-
-              fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
-
-              bot.sendMessage(chatId, `Продаж рідини ${flavor} бренду ${brand} успішно виконано. Кількість: ${quantity}`);
-              bot.sendMessage(chatId, `Ваша сума після продажу: ${salePrice} грн. Сума Олега: ${olegEarnings} грн.`);
-              sendMainMenu(chatId); // Відправляємо меню після продажу
             });
           });
         });
@@ -232,83 +211,38 @@ bot.on('callback_query', (callbackQuery) => {
       break;
 
     case 'view_inventory':
-      let inventoryMessage = 'Асортимент рідин:\n';
-      for (const brand in data.inventory) {
-        for (const flavor in data.inventory[brand].flavors) {
-          const quantity = data.inventory[brand].flavors[flavor].quantity;
-          const price = data.inventory[brand].price;
-          const olegPrice = data.inventory[brand].olegPrice;
-
-          inventoryMessage += `🔹 Бренд: ${brand}\n`;
-          inventoryMessage += `🥰 Смак: ${flavor}, 🔹 Кількість: ${quantity}, 🔹 Ціна за одиницю: ${price} грн, 🔹 Сума для Олега за 1 шт: ${olegPrice} грн\n\n`;
-        }
-      }
-
-      if (inventoryMessage === 'Асортимент рідин:\n') {
-        inventoryMessage = 'Асортимент рідин порожній.';
-      }
-
+      let inventoryMessage = 'Ось ваш асортимент рідин:\n';
+      Object.keys(data.inventory).forEach((brand) => {
+        inventoryMessage += `\n${brand}:\n`;
+        Object.keys(data.inventory[brand].flavors).forEach((flavor) => {
+          inventoryMessage += `${flavor}: ${data.inventory[brand].flavors[flavor].quantity} шт\n`;
+        });
+      });
       bot.sendMessage(chatId, inventoryMessage);
+      sendMainMenu(chatId);
       break;
 
     case 'view_balance':
-      // Розрахунок загальної вартості товару
-      let totalStockValue = 0;
-      for (const brand in data.inventory) {
-        for (const flavor in data.inventory[brand].flavors) {
-          const quantity = data.inventory[brand].flavors[flavor].quantity;
-          const price = data.inventory[brand].price;
-          totalStockValue += quantity * price;
-        }
-      }
-
-      // Розрахунок загального балансу
-      const totalBalance = data.balance.cash + data.balance.card - data.balance.oleg;
-
-      // Відправка повідомлення
-      bot.sendMessage(chatId,
-        `💰 *Баланс:*\n` +
-        `Готівка: ${data.balance.cash} грн\n` +
-        `Картка: ${data.balance.card} грн\n` +
-        `Олег: ${data.balance.oleg} грн\n\n` +
-        `📊 *Загальний баланс:* ${totalBalance} грн\n` +
-        `📦 *Загальна сума товару на складі:* ${totalStockValue} грн`,
-        { parse_mode: 'Markdown' }
-      );
+      const balanceMessage = `Баланс:\nГотівка: ${data.balance.cash} грн\nКартка: ${data.balance.card} грн\nОлег: ${data.balance.oleg} грн`;
+      bot.sendMessage(chatId, balanceMessage);
+      sendMainMenu(chatId);
       break;
 
     case 'deduct_money':
-      bot.sendMessage(chatId, 'Виберіть, з якого балансу потрібно списати кошти (готівка або картка)', {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Готівка', callback_data: 'deduct_cash' }],
-            [{ text: 'Картка', callback_data: 'deduct_card' }]
-          ]
-        }
-      });
-      break;
-
-    case 'deduct_cash':
-    case 'deduct_card':
       bot.sendMessage(chatId, 'Введіть суму для списання');
-      bot.once('message', (deductMsg) => {
-        const deductAmount = parseFloat(deductMsg.text);
-        if (isNaN(deductAmount) || deductAmount <= 0) {
+      bot.once('message', (msg) => {
+        const amount = parseFloat(msg.text);
+        if (isNaN(amount) || amount <= 0) {
           bot.sendMessage(chatId, 'Будь ласка, введіть дійсну суму для списання.');
           return sendMainMenu(chatId);
         }
-
-        if (action === 'deduct_cash' && data.balance.cash >= deductAmount) {
-          data.balance.cash -= deductAmount;
-        } else if (action === 'deduct_card' && data.balance.card >= deductAmount) {
-          data.balance.card -= deductAmount;
+        if (data.balance.cash >= amount) {
+          data.balance.cash -= amount;
+          fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
+          bot.sendMessage(chatId, `Сума ${amount} грн успішно списана з готівкового балансу.`);
         } else {
-          bot.sendMessage(chatId, 'Недостатньо коштів на рахунку.');
-          return sendMainMenu(chatId);
+          bot.sendMessage(chatId, 'Недостатньо коштів на готівковому балансі.');
         }
-
-        fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
-        bot.sendMessage(chatId, `Сума ${deductAmount} грн успішно списана.`);
         sendMainMenu(chatId);
       });
       break;
@@ -322,7 +256,7 @@ bot.on('callback_query', (callbackQuery) => {
           return sendMainMenu(chatId);
         }
 
-        bot.sendMessage(chatId, `Виберіть смак рідини для списання бренду ${brand}`);
+        bot.sendMessage(chatId, `Виберіть смак рідини для бренду ${brand}`);
         bot.once('message', (flavorMsg) => {
           const flavor = flavorMsg.text;
           if (!data.inventory[brand].flavors[flavor]) {
@@ -330,7 +264,7 @@ bot.on('callback_query', (callbackQuery) => {
             return sendMainMenu(chatId);
           }
 
-          bot.sendMessage(chatId, `Введіть кількість рідини для списання смаку ${flavor}`);
+          bot.sendMessage(chatId, `Введіть кількість рідини для списання зі складу`);
           bot.once('message', (quantityMsg) => {
             const quantity = parseInt(quantityMsg.text);
 
@@ -342,22 +276,23 @@ bot.on('callback_query', (callbackQuery) => {
             const currentQuantity = data.inventory[brand].flavors[flavor].quantity;
 
             if (quantity > currentQuantity) {
-              bot.sendMessage(chatId, 'Недостатньо кількості на складі для списання.');
+              bot.sendMessage(chatId, 'Недостатньо кількості на складі.');
               return;
             }
 
+            // Оновлення кількості рідини в асортименті
             data.inventory[brand].flavors[flavor].quantity -= quantity;
 
-            // Якщо кількість стала 0, видаляємо смак
+            // Якщо кількість рідини стала 0, видаляємо її з асортименту
             if (data.inventory[brand].flavors[flavor].quantity === 0) {
               delete data.inventory[brand].flavors[flavor];
-              bot.sendMessage(chatId, `Смак ${flavor} бренду ${brand} видалено з асортименту.`);
+              bot.sendMessage(chatId, `Смак ${flavor} для бренду ${brand} більше не доступний через відсутність на складі.`);
             }
 
             fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
 
-            bot.sendMessage(chatId, `Списано ${quantity} одиниць рідини ${flavor} бренду ${brand}.`);
-            sendMainMenu(chatId); // Відправляємо меню
+            bot.sendMessage(chatId, `Рідина ${flavor} бренду ${brand} списана зі складу.`);
+            sendMainMenu(chatId);
           });
         });
       });
@@ -365,6 +300,5 @@ bot.on('callback_query', (callbackQuery) => {
 
     default:
       sendMainMenu(chatId);
-      break;
   }
 });
