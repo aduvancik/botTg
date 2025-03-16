@@ -166,6 +166,7 @@ bot.on('callback_query', (callbackQuery) => {
       });
       break;
 
+    // Оновлений блок для продажу рідини з вибором способу оплати
     case 'sell_liquid':
       bot.sendMessage(chatId, 'Виберіть бренд рідини для продажу');
       bot.once('message', (brandMsg) => {
@@ -198,18 +199,42 @@ bot.on('callback_query', (callbackQuery) => {
               return sendMainMenu(chatId);
             }
 
-            // Update inventory and balance
-            data.inventory[brand].flavors[flavor].quantity -= quantity;
-            data.balance.cash += quantity * data.inventory[brand].price;
-            data.balance.oleg += quantity * data.inventory[brand].olegPrice;
+            // Запитуємо спосіб оплати (готівка або картка)
+            bot.sendMessage(chatId, 'Виберіть спосіб оплати:', {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: 'Готівка', callback_data: 'cash_payment' }],
+                  [{ text: 'Картка', callback_data: 'card_payment' }],
+                ]
+              }
+            });
 
-            // Save the updated data
-            fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
+            // Обробка вибору способу оплати
+            bot.on('callback_query', (paymentQuery) => {
+              const paymentType = paymentQuery.data;
 
-            bot.sendMessage(chatId, `Продаж рідини смак ${flavor} бренду ${brand} успішно виконано. Кількість: ${quantity}`);
-            bot.sendMessage(chatId, `Ваша сума після продажу: ${data.balance.cash} грн. Сума Олега: ${data.balance.oleg} грн.`);
+              // Оновлюємо кількість товару на складі
+              data.inventory[brand].flavors[flavor].quantity -= quantity;
 
-            sendMainMenu(chatId); // Return to main menu after sale
+              // Додаємо суму до відповідного балансу
+              if (paymentType === 'cash_payment') {
+                data.balance.cash += quantity * data.inventory[brand].price;
+              } else if (paymentType === 'card_payment') {
+                data.balance.card += quantity * data.inventory[brand].price;
+              }
+
+              // Оновлюємо баланс Олега
+              data.balance.oleg += quantity * data.inventory[brand].olegPrice;
+
+              // Зберігаємо дані в файл
+              fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
+
+              // Відправляємо повідомлення з результатами
+              const currentDate = new Date().toLocaleDateString();
+              bot.sendMessage(chatId, `Продаж рідини: \n${currentDate} - ${brand} ${flavor} ${quantity} шт за ${(quantity * data.inventory[brand].price)} грн (${paymentType === 'cash_payment' ? 'готівка' : 'картка'})`);
+
+              sendMainMenu(chatId); // Повертаємось до головного меню після продажу
+            });
           });
         });
       });
