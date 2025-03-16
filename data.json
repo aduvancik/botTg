@@ -5,15 +5,5 @@
     "card": 98,
     "oleg": 28
   },
-  "inventory": {
-    "бренд1": {
-      "price": 100,
-      "olegPrice": 10,
-      "flavors": {
-        "смак2": {
-          "quantity": 2
-        }
-      }
-    }
-  }
+  "inventory": {}
 }
