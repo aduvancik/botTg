@@ -166,7 +166,6 @@ bot.on('callback_query', (callbackQuery) => {
       });
       break;
 
-    // Оновлений блок для продажу рідини з вибором способу оплати
     case 'sell_liquid':
       bot.sendMessage(chatId, 'Виберіть бренд рідини для продажу');
       bot.once('message', (brandMsg) => {
@@ -210,7 +209,7 @@ bot.on('callback_query', (callbackQuery) => {
             });
 
             // Обробка вибору способу оплати
-            bot.on('callback_query', (paymentQuery) => {
+            bot.once('callback_query', (paymentQuery) => {
               const paymentType = paymentQuery.data;
 
               // Оновлюємо кількість товару на складі
@@ -239,6 +238,7 @@ bot.on('callback_query', (callbackQuery) => {
         });
       });
       break;
+
 
     case 'view_inventory':
       let inventoryMessage = 'Асортимент рідин:\n';
