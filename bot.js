@@ -78,76 +78,47 @@ bot.on('callback_query', (callbackQuery) => {
       bot.sendMessage(chatId, 'Введіть бренд рідини');
       bot.once('message', (brandMsg) => {
         const brand = brandMsg.text;
-        if (!data.inventory[brand]) {
-          data.inventory[brand] = { price: 0, olegPrice: 0, flavors: {} };
+
+        if (!brand) {
+          bot.sendMessage(chatId, 'Будь ласка, введіть бренд рідини.');
+          return sendMainMenu(chatId);
         }
 
         bot.sendMessage(chatId, `Введіть ціну за 1 шт для рідини бренду ${brand}`);
         bot.once('message', (priceMsg) => {
-          const price = parseFloat(priceMsg.text);
-          data.inventory[brand].price = price;
+          const salePrice = parseFloat(priceMsg.text);
+
+          if (isNaN(salePrice) || salePrice <= 0) {
+            bot.sendMessage(chatId, 'Будь ласка, введіть дійсну кількість для ціни.');
+            return sendMainMenu(chatId);
+          }
 
           bot.sendMessage(chatId, `Тепер введіть суму, яку отримає Олег за кожну рідину бренду ${brand}`);
-          bot.once('message', (olegPriceMsg) => {
-            const olegPrice = parseFloat(olegPriceMsg.text);
-            data.inventory[brand].olegPrice = olegPrice;
+          bot.once('message', (olegEarningsMsg) => {
+            const olegEarnings = parseFloat(olegEarningsMsg.text);
 
-            bot.sendMessage(chatId, `Ціна для бренду ${brand} встановлена на ${price} грн за 1 шт. Олег отримає ${olegPrice} грн за кожну рідину.`);
+            if (isNaN(olegEarnings) || olegEarnings <= 0) {
+              bot.sendMessage(chatId, 'Будь ласка, введіть дійсну суму для Олега.');
+              return sendMainMenu(chatId);
+            }
 
-            bot.sendMessage(chatId, 'Тепер введіть смак рідини');
+            bot.sendMessage(chatId, `Тепер введіть смак рідини для бренду ${brand}`);
+            bot.once('message', (flavorMsg) => {
+              const flavor = flavorMsg.text;
 
-            // Функція для додавання смаку
-            const addFlavor = () => {
-              bot.once('message', (flavorMsg) => {
-                const flavor = flavorMsg.text;
+              if (!flavor) {
+                bot.sendMessage(chatId, 'Будь ласка, введіть смак рідини.');
+                return sendMainMenu(chatId);
+              }
 
-                if (flavor.toLowerCase() === '/done') {
-                  bot.sendMessage(chatId, 'Додавання рідин завершено.');
-                  sendMainMenu(chatId); // Відправляємо меню
-                  return;
-                }
-
-                if (!data.inventory[brand].flavors[flavor]) {
-                  bot.sendMessage(chatId, `Введіть кількість для смаку ${flavor}`);
-                  bot.once('message', (quantityMsg) => {
-                    let quantity = parseInt(quantityMsg.text);
-
-                    // Перевірка, чи введено число
-                    while (isNaN(quantity) || quantity <= 0) {
-                      bot.sendMessage(chatId, 'Будь ласка, введіть дійсну кількість для смаку. (Тільки числа більше нуля)');
-                      bot.once('message', (retryMsg) => {
-                        quantity = parseInt(retryMsg.text);
-                      });
-                    }
-
-                    data.inventory[brand].flavors[flavor] = { quantity };
-
-                    fs.writeFileSync('data.json', JSON.stringify(data, null, 2));
-
-                    bot.sendMessage(chatId, `Рідину ${flavor} бренду ${brand} додано! Кількість: ${quantity}, Ціна: ${price}`);
-
-                    bot.sendMessage(chatId, 'Введіть наступний смак рідини або напишіть /done, щоб завершити');
-                    bot.once('message', (nextMsg) => {
-                      if (nextMsg.text.toLowerCase() === '/done') {
-                        bot.sendMessage(chatId, 'Додавання рідини завершено.');
-                        sendMainMenu(chatId);
-                      } else {
-                        bot.sendMessage(chatId, 'Введіть наступний смак рідини');
-                        addFlavor();
-                      }
-                    });
-                  });
-                } else {
-                  bot.sendMessage(chatId, `Смак ${flavor} вже існує для цього бренду.`);
-                  bot.sendMessage(chatId, 'Введіть наступний смак рідини або напишіть /done, щоб завершити');
-                }
-              });
-            };
-
-            addFlavor(); // Запускаємо функцію для першого смаку
+              // Збереження отриманих даних (brand, salePrice, olegEarnings, flavor)
+              bot.sendMessage(chatId, `Ціна для бренду ${brand} встановлена на ${salePrice} грн за 1 шт. Олег отримає ${olegEarnings} грн за кожну рідину.`);
+              sendMainMenu(chatId);
+            });
           });
         });
       });
+
       break;
 
     case 'sell_liquid':
